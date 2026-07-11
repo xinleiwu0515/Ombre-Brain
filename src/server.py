@@ -771,6 +771,49 @@ async def dream(window_hours: Optional[int] = 48) -> str:
 
 
 # =============================================================
+# Tool 13: fetch — Read a bucket's full content by ID
+# 工具 13：fetch — 通过 bucket_id 直接读取记忆桶完整内容
+# （本地补丁：随 1.x 自建工具移植，升级时需保留 / local patch, keep on upgrade）
+# =============================================================
+@mcp.tool()
+async def fetch(bucket_id: str) -> str:
+    """通过 bucket_id 直接读取记忆桶的完整内容（元数据 + 正文），不做脱水压缩。"""
+    if not bucket_id or not bucket_id.strip():
+        return "请提供有效的 bucket_id。"
+
+    bucket = await bucket_mgr.get(bucket_id.strip())
+    if bucket is None:
+        return f"未找到 bucket_id 为 {bucket_id!r} 的记忆桶。"
+
+    await bucket_mgr.touch(bucket_id.strip())
+
+    meta = bucket["metadata"]
+    name = meta.get("name", bucket_id)
+    bucket_type = meta.get("type", "unknown")
+    domain = ", ".join(meta.get("domain", []))
+    tags = ", ".join(meta.get("tags", []))
+    importance = meta.get("importance", 5)
+    valence = meta.get("valence", 0.5)
+    arousal = meta.get("arousal", 0.3)
+    created = meta.get("created", "")
+    last_active = meta.get("last_active", "")
+    resolved = meta.get("resolved", False)
+    pinned = meta.get("pinned", False)
+
+    header = (
+        f"=== {name} ===\n"
+        f"ID: {bucket_id}\n"
+        f"类型: {bucket_type} | 领域: {domain or '—'} | 重要度: {importance}\n"
+        f"情绪: V{valence:.2f}/A{arousal:.2f} | 标签: {tags or '—'}\n"
+        f"创建: {created} | 最后激活: {last_active}\n"
+        f"状态: {'已解决' if resolved else '未解决'}{' [置顶]' if pinned else ''}\n"
+        f"{'─' * 40}\n"
+    )
+
+    return header + (bucket["content"] or "(空内容)")
+
+
+# =============================================================
 # Dashboard API endpoints (for lightweight Web UI)
 # 仪表板 API（轻量 Web UI 用）
 # =============================================================
